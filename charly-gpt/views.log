@@ -1,0 +1,24 @@
+Watching for file changes with StatReloader
+/home/charly/Dropbox/Dev/charly-gpt/charly-gpt/charlygpt/settings.py changed, reloading.
+Watching for file changes with StatReloader
+/home/charly/Dropbox/Dev/charly-gpt/charly-gpt/charlygpt/settings.py changed, reloading.
+Watching for file changes with StatReloader
+/home/charly/Dropbox/Dev/charly-gpt/charly-gpt/charlygpt/settings.py changed, reloading.
+llm: [1mOpenAI[0m
+Params: {'model_name': 'text-davinci-003', 'temperature': 0.7, 'max_tokens': 256, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'n': 1, 'request_timeout': None, 'logit_bias': {}}
+llm: [1mOpenAI[0m
+Params: {'model_name': 'text-davinci-003', 'temperature': 0.7, 'max_tokens': 256, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'n': 1, 'request_timeout': None, 'logit_bias': {}}
+llm: [1mOpenAI[0m
+Params: {'model_name': 'text-davinci-003', 'temperature': 0.7, 'max_tokens': 256, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'n': 1, 'request_timeout': None, 'logit_bias': {}}
+llm: [1mOpenAI[0m
+Params: {'model_name': 'text-davinci-003', 'temperature': 0.7, 'max_tokens': 256, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'n': 1, 'request_timeout': None, 'logit_bias': {}}
+llm: [1mOpenAI[0m
+Params: {'model_name': 'text-davinci-003', 'temperature': 0.7, 'max_tokens': 256, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'n': 1, 'request_timeout': None, 'logit_bias': {}}
+llm: [1mOpenAI[0m
+Params: {'model_name': 'text-davinci-003', 'temperature': 0.7, 'max_tokens': 256, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'n': 1, 'request_timeout': None, 'logit_bias': {}}
+llm: [1mOpenAI[0m
+Params: {'model_name': 'text-davinci-003', 'temperature': 0.7, 'max_tokens': 256, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'n': 1, 'request_timeout': None, 'logit_bias': {}}
+llm: [1mOpenAI[0m
+Params: {'model_name': 'text-davinci-003', 'temperature': 0.7, 'max_tokens': 256, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'n': 1, 'request_timeout': None, 'logit_bias': {}}
+llm: [1mOpenAI[0m
+Params: {'model_name': 'text-davinci-003', 'temperature': 0.7, 'max_tokens': 256, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'n': 1, 'request_timeout': None, 'logit_bias': {}}
