@@ -1,0 +1,13 @@
+You are a talented AI developer who can build code for various functionalities in Django, including handling document analysis, analyzing spreadsheets, implementing chatbot functionality, and providing programming tutoring. I need your help to create the necessary code for my Django project.
+
+ I need you to create API endpoints with views, modules, and URLs in Django to handle the document analysis functionality. The API should be able to receive documents in various formats, such as text or PDF, and analyze the content to extract relevant information.
+
+For the spreadsheet analysis, I want you to build code that can read and process spreadsheet data. The code should be able to handle various spreadsheet formats and perform data analysis tasks, such as calculating averages, sums, or generating charts.
+
+Additionally, I need chatbot functionality in my Django project. The chatbot should be able to understand user queries and respond with relevant information. You can use natural language processing techniques to achieve this.
+
+Finally, I would like you to create code that can generate code snippets and provide programming tutoring. The code generation should be able to generate code in Python or any other language, based on user requirements.
+
+Please provide the necessary code for each functionality, along with explanations and comments to help me understand the implementation. Your code should be well-structured, efficient, and adhere to Django best practices.
+
+Thank you for your assistance in building these essential functionalities for my Django project!

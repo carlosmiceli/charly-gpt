@@ -2,24 +2,23 @@ from langchain.document_loaders import WebBaseLoader
 from langchain.indexes import VectorstoreIndexCreator
 
 class DocumentAnalyzer:
-    def __init__(self, url):
-        self.url = url
-        # Add other instance variables for storing intermediate results
+    def __init__(self, urls):
+        self.urls = urls
 
-    # def load_document(self):
-    #     loader = WebBaseLoader(self.url)
-    #     data = loader.load()
-    #     # Perform any preprocessing or initial analysis if needed
-    #     return data
+    def load_documents(self):
+        loaders = []
+        for url in self.urls:
+            loader = WebBaseLoader(url)
+            data = loader.load()
+            loaders.append(data)
+        return loaders
 
-    # def analyze_document(self, data):
-    #     # Perform the main analysis on the loaded document data
-    #     # Add complex analysis steps here
-    #     pass
+    def analyze_document(self, query):
+        data = self.load_documents()
+        index = VectorstoreIndexCreator().from_loaders(data)
+        result = index.query(query)
+        return result
 
-    def get_analysis_results(self):
-        loader = WebBaseLoader(self.url)
-        index = VectorstoreIndexCreator().from_loaders([loader])
-        result = index.query("What should I learn next if I wanted to get a job as a semi-senior developer? Please give me a response based on the journey to coding mastery document that I passed on the loader.")
-        # Return the final analysis results
+    def get_analysis_results(self, query):
+        result = self.analyze_document(query)
         return result

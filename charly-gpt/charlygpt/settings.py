@@ -136,10 +136,13 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': 'views.log',
         },
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
     },
     'loggers': {
         'chatbot.views': {  
-            'handlers': ['views_file'],  
+            'handlers': ['views_file', 'console'],  # Log to both the file and console
             'level': 'INFO',  
             'propagate': False,  
         },

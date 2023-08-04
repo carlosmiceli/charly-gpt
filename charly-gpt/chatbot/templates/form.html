@@ -1,15 +1,58 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Test Form</title>
+    <title>Document Analyzer and Agent Chat</title>
 </head>
 <body>
-    <h1>Test Form</h1>
-    <form method="post" action="/">
+    <h1>Document Analyzer and Agent Chat</h1>
+    <form id="form" method="post">
         {% csrf_token %}
-        <label for="input_text">Enter your text:</label><br>
-        <textarea id="input_text" name="input_text" rows="4" cols="50"></textarea><br>
+        <label for="url">Enter URL:</label>
+        <input type="text" name="url" id="url"><br>
+        <label for="question">Enter Question:</label>
+        <textarea name="question" id="question" rows="4" cols="50" required></textarea><br>
+        <input type="checkbox" name="use_serpapi" id="use_serpapi">
+        <label for="use_serpapi">Use SerpAPI</label><br>
         <input type="submit" value="Submit">
     </form>
+    <div id="result"></div>
+
+    <script>
+        // JavaScript code to handle form submission and display the result
+        const form = document.getElementById('form');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const url = document.getElementById('url').value.trim();
+            const question = document.getElementById('question').value.trim();
+            const useSerpAPI = document.getElementById('use_serpapi').checked;
+
+            // Check if input is a valid URL
+            const urlPattern = /^(https?:\/\/)?[\w.-]+\.[a-zA-Z]{2,}(\/\S*)?$/;
+            const isURL = urlPattern.test(url);
+
+            let submitUrl = '';
+            if (isURL) {
+                submitUrl = "{% url 'analyze_document' %}";
+            } else {
+                submitUrl = "{% url 'chat_agent' %}";
+            }
+
+            const requestBody = isURL ? { url: url, use_serpapi: useSerpAPI } : { input: question };
+
+            const response = await fetch(submitUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            const data = await response.json();
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = data.answer;
+        });
+    </script>
+    
 </body>
 </html>
