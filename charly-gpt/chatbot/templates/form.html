@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Document Analyzer and Agent Chat</title>
 </head>
+
 <body>
     <h1>Document Analyzer and Agent Chat</h1>
     <form id="form" method="post">
         {% csrf_token %}
         <label for="url">Enter URL:</label>
         <input type="text" name="url" id="url"><br>
-        <label for="question">Enter Question:</label>
-        <textarea name="question" id="question" rows="4" cols="50" required></textarea><br>
+        <textarea name="input" id="input" rows="4" cols="50" required></textarea><br>
         <input type="checkbox" name="use_serpapi" id="use_serpapi">
         <label for="use_serpapi">Use SerpAPI</label><br>
         <input type="submit" value="Submit">
@@ -23,12 +24,14 @@
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const url = document.getElementById('url').value.trim();
-            const question = document.getElementById('question').value.trim();
+            const input = document.getElementById('input').value.trim();
             const useSerpAPI = document.getElementById('use_serpapi').checked;
 
             // Check if input is a valid URL
             const urlPattern = /^(https?:\/\/)?[\w.-]+\.[a-zA-Z]{2,}(\/\S*)?$/;
             const isURL = urlPattern.test(url);
+
+            console.log("URL:", url); // Add this line for debugging
 
             let submitUrl = '';
             if (isURL) {
@@ -37,7 +40,9 @@
                 submitUrl = "{% url 'chat_agent' %}";
             }
 
-            const requestBody = isURL ? { url: url, use_serpapi: useSerpAPI } : { input: question };
+            const requestBody = isURL ? { input, url, use_serpapi: Boolean(useSerpAPI) } : { input, use_serpapi: Boolean(useSerpAPI) };
+
+            console.log("Request Body:", requestBody); // Add this line for debugging
 
             const response = await fetch(submitUrl, {
                 method: 'POST',
@@ -52,7 +57,8 @@
             const resultDiv = document.getElementById('result');
             resultDiv.textContent = data.answer;
         });
+
     </script>
-    
 </body>
+
 </html>
