@@ -1,6 +1,5 @@
 import os
 import logging
-import requests
 import json
 import traceback
 from django.shortcuts import render
@@ -13,9 +12,10 @@ from langchain.chat_models import ChatOpenAI
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.memory import ConversationBufferMemory
 from langchain.agents import AgentType, Tool, initialize_agent
-from langchain.utilities import SerpAPIWrapper
 from langchain.llms import OpenAI
 from serpapi import GoogleSearch
+from langchain.utilities import SerpAPIWrapper
+
 
 # Initialize OpenAI and the logger
 openai_api_key = os.environ.get('OPENAI_API_KEY', '')
@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 
 # Create an instance of the SerpAPIWrapper if the API key is available
 serp_api_key = os.environ.get('SERP_API_KEY', '')
-search = SerpAPIWrapper(serpapi_api_key=serp_api_key) if serp_api_key else None
+
+serpapi = SerpAPIWrapper(serpapi_api_key=serp_api_key)
 
 # Initialize the chat model
 chat_model = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.7)
@@ -104,36 +105,52 @@ def chat_agent(request):
             return JsonResponse({'error': 'Invalid JSON data.'}, status=400)
 
         input_text = data.get('input', '')
-        # use_serpapi = data.get('use_serpapi', False)  # Retrieve from payload
-
-        # Always use SerpAPI
-        # use_serpapi = True
+        use_serpapi = data.get('use_serpapi', False)  # Retrieve from payload
 
         # Create a memory for the conversation
         memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-        
+
         # Initialize the agent
         tools = []
-        # Commenting out the condition for NOT using SerpAPI
-        # if use_serpapi:
-        logger.info("Using SerpAPI for current search tool.")
-        # Perform the Google search using SerpAPI
-        params = {
-            "engine": "google",
-            "q": input_text,
-            "api_key": "YOUR_SERPAPI_API_KEY_HERE"  # Replace with your SerpAPI API key
-        }
-        search = GoogleSearch(params)
-        logger.info(f"Search: {search}")
-        results = search.get_dict()
-        # Extract the organic results from the search response
-        organic_results = results.get("organic_results", [])
-        # If you want to use the organic_results in your agent_chain, you can append it to the tools list
-        tools.append(Tool(name="Google Search Results", func=lambda x: organic_results, description="Google search results"))
-        # Add more tools here if needed
-        logger.info(f"Tools: {tools}")
 
-        # Initialize the agent only with the tools
+        if use_serpapi:
+            
+            def perform_serpapi_search(input_text):
+                try:
+                    search_results = serpapi.results(input_text)
+                except Exception as e:
+                    logger.error(f"Error while fetching search results from SerpAPI: {str(e)}")
+                    return []
+
+                formatted_results = []
+
+                if "organic_results" in search_results:
+                    organic_results = search_results["organic_results"]
+
+                    for result in organic_results:
+                        title = result.get("title", "No Title")
+                        link = result.get("link", "#")
+                        snippet = result.get("snippet", "No Snippet")
+
+                        formatted_result = {
+                            "title": title,
+                            "link": link,
+                            "snippet": snippet
+                        }
+
+                        formatted_results.append(formatted_result)
+
+                return formatted_results
+
+            logger.info("Using SerpAPI for current search tool.")
+            
+            # Create the SerpAPI tool
+            serpapi_tool = Tool(name="SerpAPI Search Results", func=perform_serpapi_search, description="SerpAPI search results")
+            
+            # Append the SerpAPI tool to the tools list
+            tools.append(serpapi_tool)
+
+        # Initialize the agent with the tools
         agent_chain = initialize_agent(tools, chat_model, agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION, verbose=True, memory=memory)
 
         logger.info(f"Agent chain: {agent_chain}")
@@ -161,3 +178,4 @@ def chat_agent(request):
         return JsonResponse({'answer': final_answer})
 
     return JsonResponse({'error': 'Invalid request method.'})
+
