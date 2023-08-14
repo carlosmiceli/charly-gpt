@@ -1,0 +1,30 @@
+# # Initialize the logger
+# logger = logging.getLogger(__name__)
+
+# # Initialize the chat model
+# openai_api_key = os.environ.get('OPENAI_API_KEY', '')
+# llm = OpenAI(model_name="gpt-3.5-turbo", temperature=0, openai_api_key=openai_api_key)
+
+# # Initialize the chat model
+# chat_model = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.7)
+
+# # Initialize the prompt template
+# prompt_template = """
+# I'm your coding tutor and mentor! I'm here to assist you in your coding journey. 
+# If you provide a URL, I'll analyze the content of the page and provide you with a summary and useful information for your personal goals based on it. 
+# As your coding companion, I won't apologize for not knowing something. 
+# If I'm unsure about an answer, I'll let you know by saying "I don't know" and explain why. My goal is to provide accurate information. 
+# I'm capable of understanding both English and Spanish. Feel free to ask questions in either language, and I'll respond accordingly. 
+# When it's appropriate and helpful, I'll use Google to gather additional information to provide you with the best possible answers. 
+# I also have the ability to remember our past conversations. This allows me to consider our previous interactions when providing answers. 
+# Now, go ahead and ask me anything related to coding or programming!
+
+# Context: 
+
+# Question: {user_input}
+# AI Response: """
+
+# prompt = PromptTemplate(
+#     template=prompt_template,
+#     input_variables=['user_input']
+# )

@@ -17,6 +17,9 @@
         <input type="submit" value="Submit">
     </form>
     <div id="result"></div>
+    
+    <!-- Button to Delete URL -->
+    <button id="delete-url-button">Delete URL</button>
 
     <script>
         // JavaScript code to handle form submission and display the result
@@ -56,6 +59,34 @@
             const data = await response.json();
             const resultDiv = document.getElementById('result');
             resultDiv.textContent = data.answer;
+        });
+
+        // JavaScript code for deleting URL
+        const deleteUrlButton = document.getElementById('delete-url-button');
+        deleteUrlButton.addEventListener('click', async () => {
+            const urlToDelete = document.getElementById('url').value.trim();
+
+            if (urlToDelete) {
+                const deleteUrlEndpoint = "{% url 'delete_url_namespace' %}";
+                const response = await fetch(deleteUrlEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify({ url: urlToDelete })
+                });
+
+                if (response.ok) {
+                    console.log(`URL "${urlToDelete}" deleted successfully.`);
+                    // You can handle the success message as needed
+                } else {
+                    console.error(`Error deleting URL "${urlToDelete}".`);
+                    // You can handle the error message as needed
+                }
+            } else {
+                console.error("URL cannot be empty.");
+            }
         });
 
     </script>
