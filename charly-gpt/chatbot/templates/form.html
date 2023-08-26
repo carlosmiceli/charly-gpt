@@ -14,21 +14,23 @@
         <textarea name="input" id="input" rows="4" cols="50" required></textarea><br>
         <input type="checkbox" name="use_serpapi" id="use_serpapi">
         <label for="use_serpapi">Use SerpAPI</label><br>
+        <input type="checkbox" name="store" id="store"> <!-- New checkbox for "store data" -->
+        <label for="store">Store Data</label><br> <!-- Label for the new checkbox -->
         <input type="submit" value="Submit">
     </form>
     <div id="result"></div>
-    
+
     <!-- Button to Delete URL -->
     <button id="delete-url-button">Delete URL</button>
 
     <script>
-        // JavaScript code to handle form submission and display the result
         const form = document.getElementById('form');
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const url = document.getElementById('url').value.trim();
             const input = document.getElementById('input').value.trim();
             const useSerpAPI = document.getElementById('use_serpapi').checked;
+            const storeBool = document.getElementById('store').checked; // New line to get the "store data" checkbox value
 
             // Check if input is a valid URL
             const urlPattern = /^(https?:\/\/)?[\w.-]+\.[a-zA-Z]{2,}(\/\S*)?$/;
@@ -36,14 +38,9 @@
 
             console.log("URL:", url); // Add this line for debugging
 
-            let submitUrl = '';
-            if (isURL) {
-                submitUrl = "{% url 'analyze_document' %}";
-            } else {
-                submitUrl = "{% url 'chat_agent' %}";
-            }
+            let submitUrl = "{% url 'chat_agent' %}";
 
-            const requestBody = isURL ? { input, url, use_serpapi: Boolean(useSerpAPI) } : { input, use_serpapi: Boolean(useSerpAPI) };
+            const requestBody = isURL ? { input, url, use_serpapi: Boolean(useSerpAPI), store: Boolean(storeBool) } : { input, use_serpapi: Boolean(useSerpAPI) };
 
             console.log("Request Body:", requestBody); // Add this line for debugging
 
@@ -67,7 +64,7 @@
             const urlToDelete = document.getElementById('url').value.trim();
 
             if (urlToDelete) {
-                const deleteUrlEndpoint = "{% url 'delete_url_namespace' %}";
+                const deleteUrlEndpoint = "{% url 'delete_url' %}";
                 const response = await fetch(deleteUrlEndpoint, {
                     method: 'POST',
                     headers: {

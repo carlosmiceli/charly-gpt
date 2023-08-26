@@ -2,132 +2,69 @@ import os
 import logging
 import json
 import traceback
-import pinecone 
+import pinecone
+import openai
 from django.shortcuts import render
 from django.http import JsonResponse
-from langchain import PromptTemplate
+from .helpers.index import clean_up_text, hash_url_to_id, tiktoken_len, process_and_upsert_chunks, create_full_prompt
+from langchain.llms import OpenAI
 from langchain.document_loaders import BrowserlessLoader
 from langchain.vectorstores import Pinecone
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.chains import RetrievalQA, ConversationChain
-from langchain.chains.conversation.memory import ConversationSummaryBufferMemory
-# from langchain.chat_models import ChatOpenAI
+from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.chat_models import ChatOpenAI
+from langchain.indexes import VectorstoreIndexCreator
+from langchain.chains import LLMChain
 from langchain.agents import AgentType, Tool, initialize_agent
-from langchain.llms import OpenAI
-from langchain.utilities import SerpAPIWrapper
-import tiktoken
-import hashlib
-from tqdm.auto import tqdm
-from uuid import uuid4
-
-tiktoken.encoding_for_model('gpt-3.5-turbo')
-tokenizer = tiktoken.get_encoding('cl100k_base')
-
-def tiktoken_len(text):
-    tokens = tokenizer.encode(
-        text,
-        disallowed_special=()
-    )
-    return len(tokens)
+# from langchain.utilities import SerpAPIWrapper
+from langchain.chains import RetrievalQA, ConversationChain, RetrievalQAWithSourcesChain
+from langchain.chains.conversation.memory import ConversationBufferWindowMemory
+from langchain import PromptTemplate
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
 
 # Initialize OpenAI
-openai_api_key = os.environ.get('OPENAI_API_KEY', '')
-llm = OpenAI(openai_api_key=openai_api_key)
-max_token_limit=4097
-
-model_name = 'text-embedding-ada-002'
-
-embed = OpenAIEmbeddings(
-    model=model_name,
-    openai_api_key=openai_api_key,
-)
+openai_api_key = os.environ.get('OPENAI_API_KEY')
+llm = ChatOpenAI(openai_api_key=openai_api_key,
+                 model_name='gpt-3.5-turbo', temperature=0.5)
+embed = OpenAIEmbeddings(openai_api_key=openai_api_key)
+max_token_limit = 4000
 
 # Initialize Pinecone
-pinecone.init(api_key=os.environ.get('PINECONE_API_KEY', ''), environment='us-west4-gcp-free')
-
+pinecone.init(api_key=os.environ.get('PINECONE_API_KEY'), environment='us-west4-gcp-free')
+index = pinecone.Index(os.environ.get('PINECONE_INDEX_NAME'))
 
 # Create an instance of the SerpAPIWrapper if the API key is available
-serp_api_key = os.environ.get('SERP_API_KEY', '')
+# serp_api_key = os.environ.get('SERP_API_KEY')
+# serpapi = SerpAPIWrapper(serpapi_api_key=serp_api_key)
 
-serpapi = SerpAPIWrapper(serpapi_api_key=serp_api_key)
-
-# # Initialize the chat model
-# chat_model = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.1)
-
-# Initialize the conversation chain
-conversation_summary_buffer_window = ConversationChain(
-    llm=llm, 
-    memory=ConversationSummaryBufferMemory(
-        llm=llm,
-        max_token_limit=650
-))
-
-# Initialize the prompt template
-prompt_template = """
-I'm your coding tutor and mentor! I'm here to assist you in your coding journey. 
-If you provide a URL, I'll analyze the content of the page and provide you with a summary and useful information for your personal goals based on it. 
-As your coding companion, I won't apologize for not knowing something. 
-If I'm unsure about an answer, I'll let you know by saying "I don't know" and explain why. My goal is to provide accurate information. 
-I'm capable of understanding both English and Spanish. Feel free to ask questions in either language, and I'll respond accordingly. 
-When it's appropriate and helpful, I'll use Google to gather additional information to provide you with the best possible answers. 
-I also have the ability to remember our past conversations. This allows me to consider our previous interactions when providing answers. 
-Now, go ahead and ask me anything related to coding or programming!
-
-Context: {document}
-
-Question: {query}
-AI Response: """
-
-#ADD EXAMPLES TO THE PROMPT
-
-def hash_url_to_id(url):
-                # Create a hashlib object using SHA-256
-                hasher = hashlib.sha256()
-
-                # Update the hasher with the URL's bytes
-                hasher.update(url.encode('utf-8'))
-
-                # Get the hexadecimal digest
-                hash_digest = hasher.hexdigest()[:16]
-
-                # Convert the hexadecimal digest to an integer
-                url_id = int(hash_digest, 16)
-
-                return url_id
 
 def form(request):
     return render(request, 'form.html')
 
-def delete_url_namespace(request):
+def delete_url(request):
     if request.method == 'POST':
-        index = pinecone.Index(os.environ.get('PINECONE_INDEX_NAME', ''))
         try:
+            # logger.info(f"1: {index.describe_index_stats()}")
             data = json.loads(request.body)
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON data.'}, status=400)
         try:
-            logger.info(index)
-            url = data.get('url', '')
-            namespace_id = str(hash_url_to_id(url))
-            delete_namespace = index.delete(
-                namespace=namespace_id,
-                delete_all=True
-            )
-            logger.info(f"Query response: {delete_namespace}")
-            return JsonResponse({'success': 'Namespace deleted successfully.'}, status=200)
+            url = data.get('url')
+            url_id = str(hash_url_to_id(url))
+            ids = [f"{i + 1}-{url_id}" for i in range(1000)]
+            index.delete(ids=ids)
+            return JsonResponse({'success': 'URL vectors deleted successfully.'}, status=200)
         except Exception as e:
             logger.error(f"Error while querying index: {str(e)}")
             logger.error(traceback.format_exc())
-            return JsonResponse({'error': 'Error occurred while querying index.'}, status=500)
+            return JsonResponse({'error': 'Error occurred while trying to delete URL vectors.'}, status=500)
     else:
         return JsonResponse({'error': 'Invalid request method.'})
 
-# Analyze Document view
-def analyze_document(request):
+
+def chat_agent(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -137,101 +74,104 @@ def analyze_document(request):
         try:
             # Load data from the URL
             query = data.get('input', '')
-            url = data.get('url', '')
-            
-            namespace_id = str(hash_url_to_id(url))
+            url = data.get('url') or None
+            store = data.get('store')
 
-            index = pinecone.Index(os.environ.get('PINECONE_INDEX_NAME', ''))
-            logger.info(index.describe_index_stats())
+            if url: 
+                url_id = str(hash_url_to_id(url)) or None
+                ids = [f"{i + 1}{url_id}" for i in range(20)]
+                logger.info(f"ids: {ids}")
+                check_url_vectors = index.fetch(ids=ids)
+                logger.info(f"check_url_vectors: {check_url_vectors}")
+                #if url vectors already exist, set a new bool to True
+                if len(check_url_vectors['vectors']) > 0:
+                    url_vectors_exist = True
 
-            metadata = {
-                'namespace_id': namespace_id,
-                'url': url,
-            }
+                logger.info(f"1: {index.describe_index_stats()}")
 
-            # Initialize the BrowserlessLoader
-            browserless_loader = BrowserlessLoader(
-                api_token=os.environ.get('BROWSERLESS_API_KEY', ''),
-                urls=[url],  # Load a single URL
-            )
-            documents = browserless_loader.load()
+                embed_function = openai.Embedding.create
+                query_function = index.query
+                engine='text-embedding-ada-002'
+                
+                metadata = {
+                    'url_id': url_id,
+                    'url': url,
+                }
 
-            # # You can now process the loaded Documents as needed
-            page_content = documents[0].page_content
+                # Initialize the BrowserlessLoader
+                browserless_loader = BrowserlessLoader(
+                    api_token=os.environ.get('BROWSERLESS_API_KEY'),
+                    urls=[url],  # Load a single URL
+                )
+                documents = browserless_loader.load()
 
-            # prompt = PromptTemplate(
-            #     input_variables=['document', 'query'],
-            #     template=prompt_template
+                page_content = clean_up_text(documents[0].page_content)
+
+                text_splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=300,
+                    chunk_overlap=10,
+                    length_function=tiktoken_len,
+                    separators=["\n\n", "\n", " ", ""]
+                )
+
+                chunks = text_splitter.split_text(page_content)
+
+                try:
+                    process_and_upsert_chunks(chunks, metadata, url_id, embed_function, engine, index)
+                    logger.info(f"2: {index.describe_index_stats()}")
+                except:
+                    logger.error(f"Error while processing and upserting chunks: {str(e)}")
+                    logger.error(traceback.format_exc())
+                    return JsonResponse({'error': 'Error occurred while processing and upserting chunks.'}, status=500)
+                
+            query_embed = embed_function(input=[query], engine=engine)
+
+            query_response = query_function(query_embed['data'][0]['embedding'], top_k=3, include_metadata=True)
+
+            prompt = create_full_prompt(query, query_response)
+
+            # PICK UP HERE
+            # GENERATIVE ANSWER
+            # FULL MEMORY
+            # ENGLISH/SPANISH?
+            # CODE INTERPRETER
+
+            # llm_chain = LLMChain(llm=llm, prompt=prompt)
+
+            # response = llm_chain.run({"query": query})
+
+            # logger.info(response)
+
+            # vectorstore = Pinecone(index=index, embedding_function=embed.embed_query, text_key='text')
+            # retriever = RetrievalQA.from_chain_type(
+            #     llm=llm, 
+            #     chain_type="stuff",
+            #     retriever=vectorstore.as_retriever()
             # )
 
-            # # logger.info(prompt)
+            # tool_desc = "Use this tool to give me answers based on all the information stored in the Pinecone vector DB. You can also be asked follow up questions based on your answers to my queries."
 
-            # # logger.info(llm(prompt.format(document=page_content, query=input_text)))
+            # tools = [Tool(name="Carlos' VectorDB", func=retriever.run, description=tool_desc)]
 
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=400,
-                chunk_overlap=20,
-                length_function=tiktoken_len,
-                separators=["\n\n", "\n", " ", ""]
-            )
+            # memory = ConversationBufferWindowMemory(llm=llm, prompt=prompt, memory_key="chat_history", return_messages=True)
 
-            batch_limit=100
+            # agent = initialize_agent(
+            #     llm=llm,
+            #     tools=tools,
+            #     agent="chat-conversational-react-description",
+            #     memory=memory,
+            #     verbose=True
+            # )
 
-            chunks = text_splitter.split_text(page_content)
+            # response = agent.run(query)
 
-            def process_and_upsert_chunks(text_chunks, embed, index, batch_limit):
+            # logger.info(f"Response: {response}")
 
-                metadatas = []
-                for i, chunk in enumerate(text_chunks):
-                    chunk_metadata = {
-                        "chunk": i, "text": chunk, **metadata
-                    }
-                    metadatas.append(chunk_metadata)
+            # If store is False and namespace did not exist previously, delete the namespace
+            if url and not store:
+                index.delete(ids=ids)
 
-                remaining_chunks = len(text_chunks)
-
-                while remaining_chunks > 0:
-                    current_batch_size = min(remaining_chunks, batch_limit)
-
-                    current_text_batch = text_chunks[:current_batch_size]
-                    current_metadata_batch = metadatas[:current_batch_size]
-                    current_ids = [f"{i + 1}-{namespace_id}" for i in range(current_batch_size)]
-
-                    current_embeds = embed.embed_documents(current_text_batch)
-                    vectors=[
-                        {
-                            "id": current_ids[i],
-                            "values": current_embeds[i],
-                            "metadata": current_metadata_batch[i]
-                        }
-                        for i in range(len(current_ids))
-                    ]
-                    index.upsert(vectors=vectors, namespace=namespace_id)
-
-                    text_chunks = text_chunks[current_batch_size:]
-                    metadatas = metadatas[current_batch_size:]
-
-                    remaining_chunks -= current_batch_size
-
-                logger.info(f"IDs: {current_ids}")
-
-            text_field = 'text'
-            # Call the function with your data and parameters
-            process_and_upsert_chunks(chunks, embed, index, batch_limit)
-
-            vectorstore = Pinecone(index, embed.embed_query, text_field)
-            logger.info(f"Vectorstore: {vectorstore}")
-
-            results = vectorstore.similarity_search(query, k=3)  # return 3 most relevant docs
-            logger.info(f"Results: {results}")
-
-            
-
-
-
-
-
-            return JsonResponse(results, safe=False)
+            return JsonResponse(1, safe=False)
 
         except Exception as e:
             # Handle any potential exceptions related to document loading and processing
@@ -242,15 +182,15 @@ def analyze_document(request):
     return JsonResponse({'error': 'Invalid request method.'})
 
 # Chat Agent view
-def chat_agent(request):
-    return 1
+# def chat_agent(request):
+#     return 1
 #     if request.method == 'POST':
 #         try:
 #             data = json.loads(request.body)
 #         except json.JSONDecodeError:
 #             return JsonResponse({'error': 'Invalid JSON data.'}, status=400)
 
-#         input_text = data.get('input', '')
+#         input_text = data.get('input')
 #         use_serpapi = data.get('use_serpapi', False)  # Retrieve from payload
 
 #         # Create a memory for the conversation
